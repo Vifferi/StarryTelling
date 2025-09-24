@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Community</title>
+
+    <!-- ================================================================================================================================== Style  ===== -->
+
+  <link rel="stylesheet" 
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet"
+    href="style.css"> 
+
+  <!-- Ionicons -->
+  <script type="module"
+    src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule
+    src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
+  <!-- ================================================================================================================================== html  ===== -->
+
+</head>
+
+<body>
+  <header>
+    <div class="logo">Starry<span>Telling</span></div>
+    <div class="search-bar">
+      <i class="fas fa-search"></i>
+      <input type="text" placeholder="Search headlines...">
+    </div>
+    <nav class="navigation">
+      <a href="#">Home</a>
+      <a href="#" id="profileBtn">Profile</a>
+      <button class="btnLogin-popup" id="authBtn">Login</button>
+    </nav>
+  </header>
+
+  <!-- ฟีดตรงกลาง -->
+  <section class="feed">
+    <div class="feed-container" id="feedContainer">
+    </div>
+  </section>
+
+  <!-- Floating Post Button -->
+  <button class="floating-btn" id="openPostBox">
+    <i class="fas fa-plus"></i>
+  </button>
+  
+
+  <!-- Floating Post Box -->
+  <div class="floating-post" id="postBox">
+      <textarea id="postContent" placeholder="What's on your mind?"></textarea>
+      <input type="text" id="postImageURL" placeholder="Paste image URL here">
+      <button type="button" class="btn" id="submitPost">Post</button>
+    </div>
+
+  <!-- Popup Wrapper (Login/Register) -->
+  <div class="wrapper">
+    <span class="icon-close">
+      <ion-icon name="close"></ion-icon>
+    </span>
+
+    <!-- Login Form -->
+    <div class="form-box login">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <div class="input-box">
+          <span class="icon"><ion-icon name="mail"></ion-icon></span>
+          <input type="email" id="loginEmail" required>
+          <label>Email</label>
+        </div>
+        <div class="input-box">
+          <span class="icon"><ion-icon name="lock-closed"></ion-icon></span>
+          <input type="password" id="loginPassword" required>
+          <label>Password</label>
+        </div>
+        <button type="submit" id="loginBtn" class="btn">Login</button>
+        <div class="login-register">
+          <p>Don't have account? <a href="#" class="register-link">Register</a></p>
+        </div>
+      </form>
+    </div>
+
+    <!-- Register Form -->
+    <div class="form-box register">
+      <h2>Registration</h2>
+      <form id="registerForm">
+        <div class="input-box">
+          <span class="icon"><ion-icon name="person"></ion-icon></span>
+          <input type="text" id="registerUsername" required>
+          <label>Username</label>
+        </div>
+        <div class="input-box">
+          <span class="icon"><ion-icon name="mail"></ion-icon></span>
+          <input type="email" id="registerEmail" required>
+          <label>Email</label>
+        </div>
+        <div class="input-box">
+          <span class="icon"><ion-icon name="lock-closed"></ion-icon></span>
+          <input type="password" id="registerPassword" required>
+          <label>Password</label>
+        </div>
+        <button type="submit" class="btn" id="registerBtn">Register</button>
+        <div class="login-register">
+          <p>Already have account? <a href="#" class="login-link">Login</a></p>
+        </div>
+      </form>
+    </div>
+  </div>
+   <!-- ================================================================================================================================== Script  ===== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+      createUserWithEmailAndPassword, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      onSnapshot,
+      serverTimestamp,
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    // ===== Firebase Storage =====
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    // ===== Firebase Config =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyBg0I0H6ID5piA15Fx1fmTRAP2SBlBBfDY",
+      authDomain: "starrytelling2.firebaseapp.com",
+      projectId: "starrytelling2",
+      storageBucket: "starrytelling2.appspot.com",
+      messagingSenderId: "519457333599",
+      appId: "1:519457333599:web:cc7cc9cc27bcc2fdaf16ea"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // Elements
+    const wrapper = document.querySelector('.wrapper');
+    const registerLink = document.querySelector('.register-link');
+    const loginLink = document.querySelector('.login-link');
+    const closeIcon = document.querySelector('.icon-close');
+    const authBtn = document.getElementById("authBtn");
+    const profileBtn = document.getElementById("profileBtn");
+    const feedContainer = document.getElementById("feedContainer");
+    const openPostBox = document.getElementById("openPostBox");
+    const postBox = document.getElementById("postBox");
+    const submitPost = document.getElementById("submitPost");
+
+    // ===== Popup Control =====
+    document.querySelector('.btnLogin-popup').addEventListener('click', (e) => {
+      e.preventDefault();
+      wrapper.classList.remove('active');
+      wrapper.style.display = 'flex';
+    });
+
+    registerLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      wrapper.classList.add('active');
+    });
+
+    loginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      wrapper.classList.remove('active');
+    });
+
+    closeIcon.addEventListener('click', () => {
+      wrapper.style.display = 'none';
+    });
+
+    // ===== Login =====
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        wrapper.style.display = "none"; // ปิด popup
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    // ===== Register =====
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("registerUsername").value;
+      const email = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
+      try {
+        // สร้างผู้ใช้และเก็บ userCredential
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // บันทึก username ลง Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          username: username,
+          email: email,
+          createdAt: serverTimestamp()
+        });
+
+        wrapper.style.display = "none"; // ปิด popup
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+
+    // ===== Profile Check =====
+    profileBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          window.location.href = "test.html";
+        } else {
+          alert("Please login first!");
+          wrapper.style.display = 'flex';
+        }
+      });
+    });
+
+    // ===== Auth State Change =====
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authBtn.textContent = "Logout";
+        authBtn.onclick = async () => {
+          await signOut(auth);
+        };
+        openPostBox.style.display = "flex"; // แสดงปุ่มโพสต์
+      } else {
+        authBtn.textContent = "Login";
+        authBtn.onclick = (e) => {
+          e.preventDefault();
+          wrapper.classList.remove('active');
+          wrapper.style.display = 'flex';
+        };
+        openPostBox.style.display = "none";
+        postBox.style.display = "none";
+      }
+    });
+
+    // ===== Post Functions =====
+    openPostBox.addEventListener("click", () => {
+      postBox.style.display = postBox.style.display === "flex" ? "none" : "flex";
+    });
+
+    submitPost.addEventListener("click", async () => {
+      const content = document.getElementById("postContent").value.trim();
+      const imageURL = document.getElementById("postImageURL").value.trim(); // ใช้ input text เป็น URL
+      const user = auth.currentUser;
+
+      if (!user) {
+        alert("Please login first!");
+        return;
+      }
+      if (content === "" && imageURL === "") return; // ถ้าไม่มีข้อความและ URL ไม่โพสต์
+
+      const imageUrls = imageURL ? [imageURL] : []; // แปลงเป็น array
+
+      // เพิ่มโพสต์ใน Firestore
+      await addDoc(collection(db, "posts"), {
+        uid: user.uid,
+        content,
+        images: imageUrls, // เก็บ URL
+        createdAt: serverTimestamp()
+      });
+
+      document.getElementById("postContent").value = "";
+      document.getElementById("postImageURL").value = "";
+      postBox.style.display = "none";
+    });
+
+
+    // ===== Load Posts with username =====
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    onSnapshot(q, async (snapshot) => {
+      feedContainer.innerHTML = "";
+
+      for (const docSnap of snapshot.docs) {
+        const post = docSnap.data();
+
+        // ดึง username ของผู้โพสต์จาก collection 'users'
+        let username = "Unknown";
+        if (post.uid) {
+          try {
+            const userDoc = await getDoc(doc(db, "users", post.uid));
+            if (userDoc.exists()) {
+              username = userDoc.data().username;
+            }
+          } catch (err) {
+            console.error("Error fetching username:", err);
+          }
+        }
+
+        // สร้าง HTML สำหรับรูป (ถ้ามี)
+        const images = post.images || []; // ถ้าไม่มี field images ให้เป็น array ว่าง
+        const div = document.createElement("div");
+        div.classList.add("post");
+
+        let imagesHTML = "";
+        if (images.length > 0) {
+          // เพิ่ม class ตามจำนวนรูป
+          let imgContainerClass = "post-images";
+          if (images.length === 1) imgContainerClass += " one-image";
+          else if (images.length === 2) imgContainerClass += " two-images";
+          else imgContainerClass += " multi-images";
+
+          imagesHTML = `<div class="${imgContainerClass}">${images.map(url => `<img src="${url}" alt="Post Image">`).join("")}</div>`;
+        }
+
+        div.innerHTML = `
+          <h4>User: ${username}</h4>
+          <p>${post.content}</p>
+          ${imagesHTML}
+        `;
+
+        feedContainer.appendChild(div);
+      }
+    });
+
+
+
+
+    
+  </script>
+</body>
+
+</html>
