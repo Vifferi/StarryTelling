@@ -118,7 +118,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-      createUserWithEmailAndPassword, signOut
+      createUserWithEmailAndPassword, signOut, updateProfile
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
       getFirestore,
@@ -129,9 +129,12 @@
       onSnapshot,
       serverTimestamp,
       doc,
-      getDoc
+      getDoc,
+      setDoc,
+      updateDoc,
+      arrayUnion,
+      arrayRemove
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    // ===== Firebase Storage =====
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     // ===== Firebase Config =====
@@ -189,7 +192,7 @@
       const password = document.getElementById("loginPassword").value;
       try {
         await signInWithEmailAndPassword(auth, email, password);
-        wrapper.style.display = "none"; // ปิด popup
+        wrapper.style.display = "none";
       } catch (err) {
         alert(err.message);
       }
@@ -202,23 +205,19 @@
       const email = document.getElementById("registerEmail").value;
       const password = document.getElementById("registerPassword").value;
       try {
-        // สร้างผู้ใช้และเก็บ userCredential
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-
-        // บันทึก username ลง Firestore
         await setDoc(doc(db, "users", user.uid), {
           username: username,
           email: email,
           createdAt: serverTimestamp()
         });
-
-        wrapper.style.display = "none"; // ปิด popup
+        console.log("User saved:", user.uid);
+        wrapper.style.display = "none";
       } catch (err) {
         alert(err.message);
       }
     });
-
 
     // ===== Profile Check =====
     profileBtn.addEventListener("click", (e) => {
@@ -240,7 +239,7 @@
         authBtn.onclick = async () => {
           await signOut(auth);
         };
-        openPostBox.style.display = "flex"; // แสดงปุ่มโพสต์
+        openPostBox.style.display = "flex";
       } else {
         authBtn.textContent = "Login";
         authBtn.onclick = (e) => {
@@ -260,22 +259,22 @@
 
     submitPost.addEventListener("click", async () => {
       const content = document.getElementById("postContent").value.trim();
-      const imageURL = document.getElementById("postImageURL").value.trim(); // ใช้ input text เป็น URL
+      const imageURL = document.getElementById("postImageURL").value.trim();
       const user = auth.currentUser;
 
       if (!user) {
         alert("Please login first!");
         return;
       }
-      if (content === "" && imageURL === "") return; // ถ้าไม่มีข้อความและ URL ไม่โพสต์
+      if (content === "" && imageURL === "") return;
 
-      const imageUrls = imageURL ? [imageURL] : []; // แปลงเป็น array
+      const imageUrls = imageURL ? [imageURL] : [];
 
-      // เพิ่มโพสต์ใน Firestore
       await addDoc(collection(db, "posts"), {
         uid: user.uid,
         content,
-        images: imageUrls, // เก็บ URL
+        images: imageUrls,
+        likes: [],
         createdAt: serverTimestamp()
       });
 
@@ -284,8 +283,7 @@
       postBox.style.display = "none";
     });
 
-
-    // ===== Load Posts with username =====
+    // ===== Load Posts + Like & Comment =====
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     onSnapshot(q, async (snapshot) => {
       feedContainer.innerHTML = "";
@@ -293,50 +291,121 @@
       for (const docSnap of snapshot.docs) {
         const post = docSnap.data();
 
-        // ดึง username ของผู้โพสต์จาก collection 'users'
+        // Username
         let username = "Unknown";
         if (post.uid) {
           try {
             const userDoc = await getDoc(doc(db, "users", post.uid));
-            if (userDoc.exists()) {
-              username = userDoc.data().username;
-            }
-          } catch (err) {
-            console.error("Error fetching username:", err);
-          }
+            if (userDoc.exists()) username = userDoc.data().username;
+          } catch (err) { console.error(err); }
         }
 
-        // สร้าง HTML สำหรับรูป (ถ้ามี)
-        const images = post.images || []; // ถ้าไม่มี field images ให้เป็น array ว่าง
-        const div = document.createElement("div");
-        div.classList.add("post");
+        // CreatedAt
+        let createdAtText = "";
+        if (post.createdAt?.toDate) {
+          const date = post.createdAt.toDate();
+          createdAtText = date.toLocaleString("th-TH", {
+            dateStyle: "short",
+            timeStyle: "short"
+          });
+        }
 
+        // Images
+        const images = post.images || [];
         let imagesHTML = "";
         if (images.length > 0) {
-          // เพิ่ม class ตามจำนวนรูป
           let imgContainerClass = "post-images";
           if (images.length === 1) imgContainerClass += " one-image";
           else if (images.length === 2) imgContainerClass += " two-images";
           else imgContainerClass += " multi-images";
-
           imagesHTML = `<div class="${imgContainerClass}">${images.map(url => `<img src="${url}" alt="Post Image">`).join("")}</div>`;
         }
 
+        // Render post
+        const div = document.createElement("div");
+        div.classList.add("post");
         div.innerHTML = `
-          <h4>User: ${username}</h4>
+          <h4>${username} <span class="post-time">${createdAtText}</span></h4>
           <p>${post.content}</p>
           ${imagesHTML}
+          <div class="post-actions">
+            <button class="like-btn" data-id="${docSnap.id}">
+              <ion-icon name="heart-outline"></ion-icon> (${post.likes?.length || 0})</button>
+            <button class="comment-toggle" data-id="${docSnap.id}">
+              <ion-icon name="chatbubble-outline"></ion-icon> comment (0) </button>
+          </div>
+          <div class="comment-section" id="comments-${docSnap.id}" style="display:none;">
+            <div class="comments-list"></div>
+            <div class="comment-box">
+              <input type="text" placeholder="Write a comment..." class="comment-input">
+              <button class="comment-submit">Post</button>
+            </div>
+          </div>
         `;
 
         feedContainer.appendChild(div);
+
+        // Event: Like
+        div.querySelector(".like-btn").addEventListener("click", async () => {
+          const user = auth.currentUser;
+          if (!user) { alert("Please login first!"); return; }
+          const postRef = doc(db, "posts", docSnap.id);
+          const hasLiked = post.likes?.includes(user.uid);
+          await updateDoc(postRef, {
+            likes: hasLiked ? arrayRemove(user.uid) : arrayUnion(user.uid)
+          });
+        });
+
+        // Event: Toggle comment
+        div.querySelector(".comment-toggle").addEventListener("click", () => {
+          const section = div.querySelector(`#comments-${docSnap.id}`);
+          section.style.display = section.style.display === "none" ? "block" : "none";
+        });
+
+        // Event: Add comment
+        div.querySelector(".comment-submit").addEventListener("click", async () => {
+          const user = auth.currentUser;
+          if (!user) { alert("Please login first!"); return; }
+          const input = div.querySelector(".comment-input");
+          const commentText = input.value.trim();
+          if (commentText === "") return;
+          await addDoc(collection(db, "posts", docSnap.id, "comments"), {
+            uid: user.uid,
+            text: commentText,
+            createdAt: serverTimestamp()
+          });
+          input.value = "";
+        });
+
+        // Load comments realtime
+        const commentsList = div.querySelector(".comments-list");
+        const cq = query(collection(db, "posts", docSnap.id, "comments"), orderBy("createdAt", "asc"));
+        onSnapshot(cq, async (csnap) => {
+          commentsList.innerHTML = "";
+          for (const cdoc of csnap.docs) {
+            const comment = cdoc.data();
+            let cUser = "Unknown";
+            if (comment.uid) {
+              const cUserDoc = await getDoc(doc(db, "users", comment.uid));
+              if (cUserDoc.exists()) cUser = cUserDoc.data().username;
+            }
+            const p = document.createElement("p");
+            p.classList.add("comment");
+            p.textContent = `${cUser}: ${comment.text}`;
+            commentsList.appendChild(p);
+          }
+          
+          // อัปเดตจำนวนคอมเมนต์
+          const commentBtn = div.querySelector(".comment-toggle");
+          commentBtn.innerHTML = `<ion-icon name="chatbubble-outline"></ion-icon> Comment (${csnap.docs.length})`;
+
+        });
       }
     });
 
 
-
-
-    
   </script>
+
 </body>
 
 </html>
