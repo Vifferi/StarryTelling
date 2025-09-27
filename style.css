@@ -31,14 +31,14 @@
     }
 
     .logo {
-        font-size: 24px;
-        font-weight: 700;
-        color: #ffffff;
-        margin-left: -50px
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-left: -50px
     }
 
     .logo span {
-        color: #dfbf31;
+      color: #dfbf31;
     }
 
     .search-bar {
@@ -110,6 +110,62 @@
     .navigation .btnLogin-popup:hover {
       background: #fff;
       color: #162938;
+    }
+
+    .activity {
+      position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
+      top: 150px;
+      left: 100px;
+      
+      font-size: 12px;
+      font-weight: 700;
+      color: #000000b9;
+      background: #ffd900c9;  /* ใส่พื้นหลังให้เห็นชัด */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .activity-info {
+      position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
+      top: 220px;
+      left: 30px;
+      
+      font-size: 12px;
+      font-weight: 700;
+      color: #000000b9;
+      background: #f3efd6c9;  /* ใส่พื้นหลังให้เห็นชัด */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .activity-info-2 {
+      position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
+      top: 320px;
+      left: 30px;
+      
+      font-size: 12px;
+      font-weight: 700;
+      color: #000000b9;
+      background: #f3efd6c9;  /* ใส่พื้นหลังให้เห็นชัด */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .help {
+      position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
+      bottom: 20px;
+      left: 30px;
+      
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffd700;
+      background: #00000000;  /* ใส่พื้นหลังให้เห็นชัด */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
 
     /* ===== Wrapper (Login/Register Popup) ===== */

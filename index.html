@@ -41,30 +41,54 @@
     </nav>
   </header>
 
+  <div class="activity">
+      <h1>กิจกรรมประจำสัปดาห์</h1>
+  </div>
+
+  <div class="activity-info">
+      <h2>ถ่ายรูปอาหารอะไรก็ได้ให้น่ากินมากที่สุด </h2>
+      <h2>พร้อมติด #testระบบ อาหารใครน่ากินมากที่สุด</h2>
+      <h2>รับไปเลยย 100 บาท</h2>
+  </div>
+
+  <div class="activity-info-2">
+      <h2>**รูปที่จะอัปขึ้นต้องแปลงเป็น url ก่อนเท่านั้น </h2>
+      <h2>สามารถแปลงฟรีง่ายๆได้ที่</h2>
+      <h2>https://postimages.org/</h2>
+      <h2>ถ้าจะอัปแบบปกติได้ต้องเสียเงินในการซื้อ add on </h2>
+      <h2>ในการพัฒนาเว็ปไซด์ ซึ่งคนพัฒนาเว็ปไม่มีเงิน</h2>
+  </div>
+
+  <div class="help">
+      <h2>ลืมรหัส อยากเปลี่ยน username </h2>
+      <h2>อยากลบโพสต์ สอบถามการทำเว็ป ๆลๆ</h2>
+      <h2>ทักมาได้ที่ IG : Psjux_</h2>
+  </div>
+
   <!-- ฟีดตรงกลาง -->
-  <section class="feed">
-    <div class="feed-container" id="feedContainer">
-    </div>
-  </section>
+    <section class="feed">
+      <div class="feed-container" id="feedContainer">
+      </div>
+    </section>
 
-  <!-- Floating Post Button -->
-  <button class="floating-btn" id="openPostBox">
-    <i class="fas fa-plus"></i>
-  </button>
-  
+    <!-- Floating Post Button -->
+    <button class="floating-btn" id="openPostBox">
+      <i class="fas fa-plus"></i>
+    </button>
+    
 
-  <!-- Floating Post Box -->
-  <div class="floating-post" id="postBox">
-      <textarea id="postContent" placeholder="What's on your mind?"></textarea>
-      <input type="text" id="postImageURL" placeholder="Paste image URL here">
-      <button type="button" class="btn" id="submitPost">Post</button>
-    </div>
+    <!-- Floating Post Box -->
+    <div class="floating-post" id="postBox">
+        <textarea id="postContent" placeholder="What's on your mind?"></textarea>
+        <input type="text" id="postImageURL" placeholder="Paste image URL here">
+        <button type="button" class="btn" id="submitPost">Post</button>
+      </div>
 
-  <!-- Popup Wrapper (Login/Register) -->
-  <div class="wrapper">
-    <span class="icon-close">
-      <ion-icon name="close"></ion-icon>
-    </span>
+    <!-- Popup Wrapper (Login/Register) -->
+    <div class="wrapper">
+      <span class="icon-close">
+        <ion-icon name="close"></ion-icon>
+      </span>
 
     <!-- Login Form -->
     <div class="form-box login">
@@ -112,6 +136,7 @@
         </div>
       </form>
     </div>
+
   </div>
    <!-- ================================================================================================================================== Script  ===== -->
   <script type="module">
@@ -163,6 +188,9 @@
     const openPostBox = document.getElementById("openPostBox");
     const postBox = document.getElementById("postBox");
     const submitPost = document.getElementById("submitPost");
+    const searchInput = document.querySelector(".search-bar input");
+    let allPosts = [];
+
 
     // ===== Popup Control =====
     document.querySelector('.btnLogin-popup').addEventListener('click', (e) => {
@@ -283,13 +311,14 @@
       postBox.style.display = "none";
     });
 
-    // ===== Load Posts + Like & Comment =====
+    // ===== Load Posts + Like & Comment =====   
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     onSnapshot(q, async (snapshot) => {
       feedContainer.innerHTML = "";
 
       for (const docSnap of snapshot.docs) {
         const post = docSnap.data();
+        allPosts.push(post);
 
         // Username
         let username = "Unknown";
@@ -401,8 +430,77 @@
 
         });
       }
-    });
+      renderPosts(allPosts);
 
+      // ===== Search Event =====
+      searchInput.addEventListener("input", async () => {
+        const keyword = searchInput.value.toLowerCase();
+
+        // กรองจาก allPosts ที่เก็บไว้
+        const filtered = [];
+
+        for (const post of allPosts) {
+          // ดึง username ของโพสต์
+          let username = "Unknown";
+          if (post.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, "users", post.uid));
+              if (userDoc.exists()) username = userDoc.data().username;
+            } catch (err) { console.error(err); }
+          }
+
+          // เช็ก content + username
+          const contentMatch = post.content && post.content.toLowerCase().includes(keyword);
+          const usernameMatch = username.toLowerCase().includes(keyword);
+
+          if (contentMatch || usernameMatch) {
+            filtered.push({ ...post, username });
+          }
+        }
+
+        renderPosts(filtered);
+      });
+
+      // ===== Render Function (ใช้กับ search ด้วย) =====
+      function renderPosts(posts) {
+        feedContainer.innerHTML = "";
+        posts.forEach(async (post) => {
+          let username = post.username || "Unknown";
+
+          // เวลา
+          let createdAtText = "";
+          if (post.createdAt?.toDate) {
+            const date = post.createdAt.toDate();
+            createdAtText = date.toLocaleString("th-TH", {
+              dateStyle: "short",
+              timeStyle: "short"
+            });
+          }
+
+          // รูป
+          const images = post.images || [];
+          let imagesHTML = "";
+          if (images.length > 0) {
+            let imgContainerClass = "post-images";
+            if (images.length === 1) imgContainerClass += " one-image";
+            else if (images.length === 2) imgContainerClass += " two-images";
+            else imgContainerClass += " multi-images";
+            imagesHTML = `<div class="${imgContainerClass}">${images.map(url => `<img src="${url}" alt="Post Image">`).join("")}</div>`;
+          }
+
+          // สร้างโพสต์ใหม่
+          const div = document.createElement("div");
+          div.classList.add("post");
+          div.innerHTML = `
+            <h4>${username} <span class="post-time">${createdAtText}</span></h4>
+            <p>${post.content}</p>
+            ${imagesHTML}
+          `;
+          feedContainer.appendChild(div);
+        });
+      }
+
+    });
 
   </script>
 
