@@ -112,6 +112,18 @@
       color: #162938;
     }
 
+    .activity-kr {
+      position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
+      top: 120px;
+      left: 28px;
+      width: 400px;
+      height: 400px;
+      background: #f3efd6c9;  /* ใส่พื้นหลังให้เห็นชัด */
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
     .activity {
       position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
       top: 150px;
@@ -162,7 +174,7 @@
       font-size: 12px;
       font-weight: 700;
       color: #ffd700;
-      background: #00000000;  /* ใส่พื้นหลังให้เห็นชัด */
+      background: #000000d3;  /* ใส่พื้นหลังให้เห็นชัด */
       padding: 10px 15px;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);

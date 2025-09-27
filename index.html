@@ -41,6 +41,10 @@
     </nav>
   </header>
 
+  <div class="activity-kr">
+      <h2></h2>
+  </div>
+
   <div class="activity">
       <h1>กิจกรรมประจำสัปดาห์</h1>
   </div>
@@ -54,8 +58,8 @@
   <div class="activity-info-2">
       <h2>**รูปที่จะอัปขึ้นต้องแปลงเป็น url ก่อนเท่านั้น </h2>
       <h2>สามารถแปลงฟรีง่ายๆได้ที่</h2>
-      <h2>https://postimages.org/</h2>
-      <h2>ถ้าจะอัปแบบปกติได้ต้องเสียเงินในการซื้อ add on </h2>
+      <h2>https://postimages.org/ ถ้าจะอัปแบบปกติ</h2>
+      <h2>ได้ต้องเสียเงินในการซื้อ add on </h2>
       <h2>ในการพัฒนาเว็ปไซด์ ซึ่งคนพัฒนาเว็ปไม่มีเงิน</h2>
   </div>
 
@@ -311,14 +315,14 @@
       postBox.style.display = "none";
     });
 
-    // ===== Load Posts + Like & Comment =====   
+    // ===== Load Posts Realtime =====
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     onSnapshot(q, async (snapshot) => {
-      feedContainer.innerHTML = "";
+      allPosts = []; // เคลียร์ก่อนโหลดใหม่
 
       for (const docSnap of snapshot.docs) {
         const post = docSnap.data();
-        allPosts.push(post);
+        const postId = docSnap.id;
 
         // Username
         let username = "Unknown";
@@ -329,17 +333,37 @@
           } catch (err) { console.error(err); }
         }
 
-        // CreatedAt
+        allPosts.push({ ...post, id: postId, username });
+      }
+
+      renderPosts(allPosts);
+    });
+
+    // ===== Search Event =====
+    searchInput.addEventListener("input", () => {
+      const keyword = searchInput.value.toLowerCase();
+      const filtered = allPosts.filter(
+        (p) =>
+          (p.content && p.content.toLowerCase().includes(keyword)) ||
+          (p.username && p.username.toLowerCase().includes(keyword))
+      );
+      renderPosts(filtered);
+    });
+
+    // ===== Render Posts Function =====
+    function renderPosts(posts) {
+      feedContainer.innerHTML = "";
+
+      posts.forEach(async (post) => {
         let createdAtText = "";
         if (post.createdAt?.toDate) {
           const date = post.createdAt.toDate();
           createdAtText = date.toLocaleString("th-TH", {
             dateStyle: "short",
-            timeStyle: "short"
+            timeStyle: "short",
           });
         }
 
-        // Images
         const images = post.images || [];
         let imagesHTML = "";
         if (images.length > 0) {
@@ -347,23 +371,27 @@
           if (images.length === 1) imgContainerClass += " one-image";
           else if (images.length === 2) imgContainerClass += " two-images";
           else imgContainerClass += " multi-images";
-          imagesHTML = `<div class="${imgContainerClass}">${images.map(url => `<img src="${url}" alt="Post Image">`).join("")}</div>`;
+          imagesHTML = `<div class="${imgContainerClass}">${images
+            .map((url) => `<img src="${url}" alt="Post Image">`)
+            .join("")}</div>`;
         }
 
-        // Render post
+        // สร้างโพสต์ div
         const div = document.createElement("div");
         div.classList.add("post");
         div.innerHTML = `
-          <h4>${username} <span class="post-time">${createdAtText}</span></h4>
+          <h4>${post.username} <span class="post-time">${createdAtText}</span></h4>
           <p>${post.content}</p>
           ${imagesHTML}
           <div class="post-actions">
-            <button class="like-btn" data-id="${docSnap.id}">
-              <ion-icon name="heart-outline"></ion-icon> (${post.likes?.length || 0})</button>
-            <button class="comment-toggle" data-id="${docSnap.id}">
-              <ion-icon name="chatbubble-outline"></ion-icon> comment (0) </button>
+            <button class="like-btn" data-id="${post.id}">
+              <ion-icon name="heart-outline"></ion-icon> (${post.likes?.length || 0})
+            </button>
+            <button class="comment-toggle" data-id="${post.id}">
+              <ion-icon name="chatbubble-outline"></ion-icon> Comment (0)
+            </button>
           </div>
-          <div class="comment-section" id="comments-${docSnap.id}" style="display:none;">
+          <div class="comment-section" id="comments-${post.id}" style="display:none;">
             <div class="comments-list"></div>
             <div class="comment-box">
               <input type="text" placeholder="Write a comment..." class="comment-input">
@@ -371,34 +399,33 @@
             </div>
           </div>
         `;
-
         feedContainer.appendChild(div);
 
-        // Event: Like
+        const user = auth.currentUser;
+
+        // ===== Like Event =====
         div.querySelector(".like-btn").addEventListener("click", async () => {
-          const user = auth.currentUser;
           if (!user) { alert("Please login first!"); return; }
-          const postRef = doc(db, "posts", docSnap.id);
+          const postRef = doc(db, "posts", post.id);
           const hasLiked = post.likes?.includes(user.uid);
           await updateDoc(postRef, {
             likes: hasLiked ? arrayRemove(user.uid) : arrayUnion(user.uid)
           });
         });
 
-        // Event: Toggle comment
+        // ===== Toggle Comment Section =====
         div.querySelector(".comment-toggle").addEventListener("click", () => {
-          const section = div.querySelector(`#comments-${docSnap.id}`);
+          const section = div.querySelector(`#comments-${post.id}`);
           section.style.display = section.style.display === "none" ? "block" : "none";
         });
 
-        // Event: Add comment
+        // ===== Add Comment =====
         div.querySelector(".comment-submit").addEventListener("click", async () => {
-          const user = auth.currentUser;
           if (!user) { alert("Please login first!"); return; }
           const input = div.querySelector(".comment-input");
           const commentText = input.value.trim();
-          if (commentText === "") return;
-          await addDoc(collection(db, "posts", docSnap.id, "comments"), {
+          if (!commentText) return;
+          await addDoc(collection(db, "posts", post.id, "comments"), {
             uid: user.uid,
             text: commentText,
             createdAt: serverTimestamp()
@@ -406,12 +433,12 @@
           input.value = "";
         });
 
-        // Load comments realtime
+        // ===== Load Comments Realtime =====
         const commentsList = div.querySelector(".comments-list");
-        const cq = query(collection(db, "posts", docSnap.id, "comments"), orderBy("createdAt", "asc"));
-        onSnapshot(cq, async (csnap) => {
+        const cq = query(collection(db, "posts", post.id, "comments"), orderBy("createdAt", "asc"));
+        onSnapshot(cq, (csnap) => {
           commentsList.innerHTML = "";
-          for (const cdoc of csnap.docs) {
+          csnap.docs.forEach(async (cdoc) => {
             const comment = cdoc.data();
             let cUser = "Unknown";
             if (comment.uid) {
@@ -422,85 +449,14 @@
             p.classList.add("comment");
             p.textContent = `${cUser}: ${comment.text}`;
             commentsList.appendChild(p);
-          }
-          
+          });
+
           // อัปเดตจำนวนคอมเมนต์
           const commentBtn = div.querySelector(".comment-toggle");
           commentBtn.innerHTML = `<ion-icon name="chatbubble-outline"></ion-icon> Comment (${csnap.docs.length})`;
-
         });
-      }
-      renderPosts(allPosts);
-
-      // ===== Search Event =====
-      searchInput.addEventListener("input", async () => {
-        const keyword = searchInput.value.toLowerCase();
-
-        // กรองจาก allPosts ที่เก็บไว้
-        const filtered = [];
-
-        for (const post of allPosts) {
-          // ดึง username ของโพสต์
-          let username = "Unknown";
-          if (post.uid) {
-            try {
-              const userDoc = await getDoc(doc(db, "users", post.uid));
-              if (userDoc.exists()) username = userDoc.data().username;
-            } catch (err) { console.error(err); }
-          }
-
-          // เช็ก content + username
-          const contentMatch = post.content && post.content.toLowerCase().includes(keyword);
-          const usernameMatch = username.toLowerCase().includes(keyword);
-
-          if (contentMatch || usernameMatch) {
-            filtered.push({ ...post, username });
-          }
-        }
-
-        renderPosts(filtered);
       });
-
-      // ===== Render Function (ใช้กับ search ด้วย) =====
-      function renderPosts(posts) {
-        feedContainer.innerHTML = "";
-        posts.forEach(async (post) => {
-          let username = post.username || "Unknown";
-
-          // เวลา
-          let createdAtText = "";
-          if (post.createdAt?.toDate) {
-            const date = post.createdAt.toDate();
-            createdAtText = date.toLocaleString("th-TH", {
-              dateStyle: "short",
-              timeStyle: "short"
-            });
-          }
-
-          // รูป
-          const images = post.images || [];
-          let imagesHTML = "";
-          if (images.length > 0) {
-            let imgContainerClass = "post-images";
-            if (images.length === 1) imgContainerClass += " one-image";
-            else if (images.length === 2) imgContainerClass += " two-images";
-            else imgContainerClass += " multi-images";
-            imagesHTML = `<div class="${imgContainerClass}">${images.map(url => `<img src="${url}" alt="Post Image">`).join("")}</div>`;
-          }
-
-          // สร้างโพสต์ใหม่
-          const div = document.createElement("div");
-          div.classList.add("post");
-          div.innerHTML = `
-            <h4>${username} <span class="post-time">${createdAtText}</span></h4>
-            <p>${post.content}</p>
-            ${imagesHTML}
-          `;
-          feedContainer.appendChild(div);
-        });
-      }
-
-    });
+    }
 
   </script>
 
