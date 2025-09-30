@@ -115,7 +115,7 @@
     .activity-kr {
       position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
       top: 120px;
-      left: 28px;
+      right: 28px;
       width: 400px;
       height: 400px;
       background: #f3efd6c9;  /* ใส่พื้นหลังให้เห็นชัด */
@@ -127,7 +127,7 @@
     .activity {
       position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
       top: 150px;
-      left: 100px;
+      right: 100px;
       
       font-size: 12px;
       font-weight: 700;
@@ -141,7 +141,7 @@
     .activity-info {
       position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
       top: 220px;
-      left: 30px;
+      right: 70px;
       
       font-size: 12px;
       font-weight: 700;
@@ -155,7 +155,7 @@
     .activity-info-2 {
       position: fixed; /* ทำให้กล่อง activity ลอยอยู่ตลอด */
       top: 320px;
-      left: 30px;
+      right: 40px;
       
       font-size: 12px;
       font-weight: 700;

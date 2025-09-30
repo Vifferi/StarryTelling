@@ -46,12 +46,12 @@
   </div>
 
   <div class="activity">
-      <h1>กิจกรรมประจำสัปดาห์</h1>
+      <h1>เควสประจำสัปดาห์</h1>
   </div>
 
   <div class="activity-info">
-      <h2>ถ่ายรูปอาหารอะไรก็ได้ให้น่ากินมากที่สุด </h2>
-      <h2>พร้อมติด #testระบบ อาหารใครน่ากินมากที่สุด</h2>
+      <h2>ถ่ายรูปท้องฟ้าให้สวยถูกใจกรรมการ </h2>
+      <h2>พร้อมติด #testระบบ ใครถ่ายสวยที่สุด</h2>
       <h2>รับไปเลยย 100 บาท</h2>
   </div>
 
@@ -59,8 +59,6 @@
       <h2>**รูปที่จะอัปขึ้นต้องแปลงเป็น url ก่อนเท่านั้น </h2>
       <h2>สามารถแปลงฟรีง่ายๆได้ที่</h2>
       <h2>https://postimages.org/ ถ้าจะอัปแบบปกติ</h2>
-      <h2>ได้ต้องเสียเงินในการซื้อ add on </h2>
-      <h2>ในการพัฒนาเว็ปไซด์ ซึ่งคนพัฒนาเว็ปไม่มีเงิน</h2>
   </div>
 
   <div class="help">
@@ -444,7 +442,7 @@
             if (comment.uid) {
               const cUserDoc = await getDoc(doc(db, "users", comment.uid));
               if (cUserDoc.exists()) cUser = cUserDoc.data().username;
-            }
+            }   
             const p = document.createElement("p");
             p.classList.add("comment");
             p.textContent = `${cUser}: ${comment.text}`;
